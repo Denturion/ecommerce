@@ -92,7 +92,7 @@ export const OrderSummary = () => {
 			<ul>
 				{orderDetails.order_items.map((item: any, index: number) => (
 					<li key={index}>
-						{item.product_name} - ${item.unit_price / 100} x {item.quantity}
+						{item.product_name} - ${item.unit_price} x {item.quantity}
 					</li>
 				))}
 			</ul>
