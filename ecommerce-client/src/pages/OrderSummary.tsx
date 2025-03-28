@@ -70,7 +70,7 @@ export const OrderSummary = () => {
 
 	return (
 		<div>
-			<Title>Order Summary</Title>
+			<Title>Thank you for your order!</Title>
 			<h2>Customer Information</h2>
 			<p>
 				<strong>Name:</strong> {orderDetails.customer_firstname}{' '}

@@ -20,4 +20,35 @@ const FormLabel = styled.label`
 	margin-top: 1rem;
 `;
 
-export { FormInput, FormLabel };
+const CustomerFormButtonBack = styled.button`
+	padding: 0.5rem 1rem;
+	background-color: red;
+	color: white;
+	border: none;
+	border-radius: 0.25rem;
+	cursor: pointer;
+	transition: background-color 0.2s;
+	margin-top: 1rem;
+
+	&:hover {
+		background-color: darkred;
+	}
+`;
+
+const CustomerFormButtonNext = styled.button`
+	padding: 0.5rem 1rem;
+	background-color: green;
+	color: white;
+	border: none;
+	border-radius: 0.25rem;
+	cursor: pointer;
+	transition: background-color 0.2s;
+	margin-top: 1rem;
+	margin-left: 2rem;
+
+	&:hover {
+		background-color: darkgreen;
+	}
+`;
+
+export { FormInput, FormLabel, CustomerFormButtonBack, CustomerFormButtonNext };

@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 
 export const ProductsContainer = styled.div`
-	display: grid;
+	display: flex;
 	grid-template-columns: repeat(1, 1fr);
 	gap: 1rem;
 	max-width: 1140px;

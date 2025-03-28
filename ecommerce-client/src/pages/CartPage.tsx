@@ -3,7 +3,12 @@ import { useCart } from '../components/contexts/CartContext';
 import { Title } from '../components/styled/AdminNav';
 import { ICreateCustomer } from '../components/types/ICreateCustomer';
 
-import { FormInput, FormLabel } from '../components/styled/FormInput';
+import {
+	CustomerFormButtonBack,
+	CustomerFormButtonNext,
+	FormInput,
+	FormLabel,
+} from '../components/styled/FormInput';
 import { createOrder, updateOrder } from '../services/orderServices';
 import {
 	calculateTotalPrice,
@@ -20,6 +25,7 @@ import {
 } from '../services/stripeServices';
 import { loadStripe } from '@stripe/stripe-js';
 import { useSearchParams } from 'react-router';
+import { CartItem, CartSummary } from '../components/styled/CartItem';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -266,38 +272,44 @@ export const CartPage: React.FC = () => {
 					<Title>Your Cart</Title>
 					<ul>
 						{cart.map((product, index) => (
-							<li key={product.id ?? `product-${index}`}>
+							<CartItem key={product.id ?? `product-${index}`}>
 								<img src={product.image} alt={product.name} />
-								<h2>{product.name}</h2>
-								<p>{product.description}</p>
-								<p>Price: ${product.price}</p>
-								<p>
-									Quantity:{' '}
-									<select
-										value={product.quantity || 1}
-										onChange={(e) =>
-											handleQuantityChange(
-												product.id!,
-												parseInt(e.target.value, 10)
-											)
-										}
-									>
-										{[1, 2, 3, 4, 5].map((qty) => (
-											<option key={qty} value={qty}>
-												{qty}
-											</option>
-										))}
-									</select>
-								</p>
+								<div className='details'>
+									<h2>{product.name}</h2>
+									<p>{product.description}</p>
+									<p>Price: ${product.price}</p>
+									<div className='quantity'>
+										<span>Quantity:</span>
+										<select
+											value={product.quantity || 1}
+											onChange={(e) =>
+												handleQuantityChange(
+													product.id!,
+													parseInt(e.target.value, 10)
+												)
+											}
+										>
+											{[1, 2, 3, 4, 5].map((qty) => (
+												<option key={qty} value={qty}>
+													{qty}
+												</option>
+											))}
+										</select>
+									</div>
+								</div>
+
 								<button
 									onClick={() => product.id && removeFromCart(product.id!)}
 								>
 									Remove
 								</button>
-							</li>
+							</CartItem>
 						))}
 					</ul>
-					<button onClick={handleGoToCheckout}>Go to Checkout</button>
+					<CartSummary>
+						<div className='total'>Total: ${calculateTotalPrice(cart)}</div>
+						<button onClick={handleGoToCheckout}>Go to Checkout</button>
+					</CartSummary>
 				</div>
 			)}
 
@@ -380,10 +392,12 @@ export const CartPage: React.FC = () => {
 							value={customerInfo.country}
 							onChange={handleCustomerInfoChange}
 						/>
-						<button onClick={handleBackToCart}>Back to Cart</button>
-						<button onClick={handleSubmitCustomerInfo}>
+						<CustomerFormButtonBack onClick={handleBackToCart}>
+							Back to Cart
+						</CustomerFormButtonBack>
+						<CustomerFormButtonNext onClick={handleSubmitCustomerInfo}>
 							Proceed to checkout
-						</button>
+						</CustomerFormButtonNext>
 					</form>
 				</div>
 			)}
