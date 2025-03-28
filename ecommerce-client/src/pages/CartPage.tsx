@@ -1,32 +1,49 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '../components/contexts/CartContext';
 import { Title } from '../components/styled/AdminNav';
 import { ICreateCustomer } from '../components/types/ICreateCustomer';
 
 import { FormInput, FormLabel } from '../components/styled/FormInput';
-import { createOrder } from '../services/orderServices';
+import { createOrder, updateOrder } from '../services/orderServices';
 import {
 	calculateTotalPrice,
 	mapCartToOrderItems,
 } from '../utils/cartHandlers';
-import { createCustomer } from '../services/customerServices';
+import {
+	createCustomer,
+	fetchCustomerByEmail,
+} from '../services/customerServices';
 import { ICreateOrder } from '../components/types/ICreateOrder';
+import {
+	fetchClientSecret,
+	fetchPaymentDetails,
+} from '../services/stripeServices';
+import { loadStripe } from '@stripe/stripe-js';
+import { useSearchParams } from 'react-router';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 export const CartPage: React.FC = () => {
 	const { cart, removeFromCart, setCart } = useCart();
+	const [loading, setLoading] = useState<boolean>(false);
 	const [currentStep, setCurrentStep] = useState<
-		'cart' | 'customerInfo' | 'orderSummary'
+		'cart' | 'customerInfo' | 'success' | 'orderSummary'
 	>('cart');
-	const [customerInfo, setCustomerInfo] = useState<ICreateCustomer>({
-		firstname: '',
-		lastname: '',
-		email: '',
-		password: '',
-		phone: '',
-		street_address: '',
-		postal_code: '',
-		city: '',
-		country: '',
+	const [customerInfo, setCustomerInfo] = useState<ICreateCustomer>(() => {
+		const savedCustomerInfo = localStorage.getItem('customerInfo');
+		return savedCustomerInfo
+			? JSON.parse(savedCustomerInfo)
+			: {
+					firstname: '',
+					lastname: '',
+					email: '',
+					password: '',
+					phone: '',
+					street_address: '',
+					postal_code: '',
+					city: '',
+					country: '',
+			  };
 	});
 
 	const [error, setError] = useState<string | null>(null);
@@ -36,6 +53,25 @@ export const CartPage: React.FC = () => {
 		products: typeof cart;
 		total: number;
 	} | null>(null);
+
+	const [searchParams] = useSearchParams();
+
+	useEffect(() => {
+		const savedCustomerInfo = localStorage.getItem('customerInfo');
+		if (savedCustomerInfo) {
+			setCustomerInfo(JSON.parse(savedCustomerInfo));
+		}
+	}, []);
+
+	useEffect(() => {
+		localStorage.setItem('customerInfo', JSON.stringify(customerInfo));
+	}, [customerInfo]);
+
+	useEffect(() => {
+		if (currentStep === 'success') {
+			handleOrderCreation();
+		}
+	}, [currentStep]);
 
 	const handleGoToCheckout = () => {
 		setCurrentStep('customerInfo');
@@ -69,69 +105,153 @@ export const CartPage: React.FC = () => {
 					? { ...product, quantity: newQuantity }
 					: product
 			);
-			localStorage.setItem('cart', JSON.stringify(updatedCart)); // Sync with localStorage
+			localStorage.setItem('cart', JSON.stringify(updatedCart));
 			return updatedCart;
 		});
 	};
 
 	const handleSubmitCustomerInfo = async () => {
+		console.log('handleSubmitCustomerInfo triggered');
+
 		if (!validateCustomerInfo()) {
+			return;
+		}
+		try {
+			setLoading(true);
+			let customer;
+
+			try {
+				const response = await fetchCustomerByEmail(customerInfo.email);
+				customer = response;
+				console.log('Customer already exists:', customer);
+			} catch (error: any) {
+				if (error.response?.status === 404) {
+					console.log('Customer does not exist, creating a new one...');
+					customer = await createCustomer({
+						firstname: customerInfo.firstname,
+						lastname: customerInfo.lastname,
+						email: customerInfo.email,
+						password: customerInfo.password,
+						phone: customerInfo.phone,
+						street_address: customerInfo.street_address,
+						postal_code: customerInfo.postal_code,
+						city: customerInfo.city,
+						country: customerInfo.country,
+					});
+					console.log('Created new customer:', customer);
+				} else {
+					console.error('Error checking customer existence:', error);
+					setError('Failed to check customer existence. Please try again.');
+					setLoading(false);
+					return;
+				}
+			}
+
+			if (!customer || !customer.id) {
+				setError('Failed to retrieve customer information.');
+				setLoading(false);
+				return;
+			}
+
+			console.log('cart', cart);
+			console.log('Customer ID:', customer.id);
+
+			const orderItems = mapCartToOrderItems(cart);
+			const totalPrice = calculateTotalPrice(cart);
+
+			const newOrder: ICreateOrder = {
+				customer_id: customer.id,
+				total_price: totalPrice,
+				payment_status: 'Unpaid',
+				payment_id: '',
+				order_status: 'Pending',
+				customer_firstname: customerInfo.firstname,
+				customer_lastname: customerInfo.lastname,
+				customer_email: customerInfo.email,
+				customer_phone: customerInfo.phone,
+				customer_street_address: customerInfo.street_address,
+				customer_postal_code: customerInfo.postal_code,
+				customer_city: customerInfo.city,
+				customer_country: customerInfo.country,
+				order_items: orderItems,
+			};
+
+			console.log('Creating order:', newOrder);
+			const createdOrder = await createOrder(newOrder);
+			console.log('Order created successfully:', createdOrder);
+
+			const sessionId = await fetchClientSecret(cart, customer.id);
+
+			if (!sessionId) {
+				setError('Failed to create checkout session.');
+				setLoading(false);
+				return;
+			}
+
+			console.log('Fetched session ID:', sessionId);
+
+			console.log('Calling updateOrder with:', createdOrder.id, {
+				payment_id: sessionId,
+			});
+			await updateOrder(createdOrder.id, {
+				payment_id: sessionId,
+				payment_status: 'Unpaid',
+				order_status: 'Pending',
+			});
+			console.log('Order updated with payment_id', sessionId);
+
+			const stripe = await stripePromise;
+			const result = await stripe?.redirectToCheckout({
+				sessionId,
+			});
+
+			if (result?.error) {
+				console.error('Stripe checkout error:', result.error);
+				setError('Failed to redirect to Stripe checkout. Please try again.');
+			}
+		} catch (error) {
+			console.error('Error during checkout process:', error);
+			setError('Failed to complete the checkout process. Please try again.');
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleOrderCreation = async () => {
+		const sessionId = searchParams.get('session_id');
+		if (!sessionId) {
+			setError('Session ID is missing.');
 			return;
 		}
 
 		try {
-			const createdCustomer = await createCustomer({
-				firstname: customerInfo.firstname,
-				lastname: customerInfo.lastname,
-				email: customerInfo.email,
-				password: customerInfo.password,
-				phone: customerInfo.phone,
-				street_address: customerInfo.street_address,
-				postal_code: customerInfo.postal_code,
-				city: customerInfo.city,
-				country: customerInfo.country,
+			setLoading(true);
+
+			if (loading) {
+				return <div>Loading...</div>;
+			}
+
+			const paymentDetails = await fetchPaymentDetails(sessionId);
+			console.log('Fetched payment details:', paymentDetails);
+
+			await updateOrder(paymentDetails.order_id, {
+				payment_status: paymentDetails.payment_status,
+				order_status: 'Pending',
 			});
 
-			console.log('Created customer:', createdCustomer);
+			console.log('Order updated successfully.');
 
-			const totalPrice = calculateTotalPrice(cart);
-			const orderItems = mapCartToOrderItems(cart);
-
-			console.log('Order items:', orderItems);
-
-			const newOrder: ICreateOrder = {
-				customer_id: createdCustomer.id,
-				total_price: totalPrice,
-				payment_status: 'Unpaid',
-				order_status: 'Pending',
-				customer_firstname: createdCustomer.firstname,
-				customer_lastname: createdCustomer.lastname,
-				customer_email: createdCustomer.email,
-				customer_phone: createdCustomer.phone,
-				customer_street_address: createdCustomer.street_address,
-				customer_postal_code: createdCustomer.postal_code,
-				customer_city: createdCustomer.city,
-				customer_country: createdCustomer.country,
-				order_items: orderItems,
-			};
-
-			console.log('Order being created:', newOrder);
-
-			const createdOrder = await createOrder(newOrder);
-
-			console.log('Order created successfully:', createdOrder);
-
-			// Update the order summary and clear the cart
 			setOrderSummary({
-				customer: createdCustomer,
+				customer: customerInfo,
 				products: cart,
-				total: totalPrice,
+				total: calculateTotalPrice(cart),
 			});
 			setCart([]);
-			setCurrentStep('orderSummary');
 		} catch (error) {
-			console.error('Error placing the order:', error);
-			setError('Failed to place the order. Please try again.');
+			console.error('Error creating order:', error);
+			setError('Failed to create the order. Please try again.');
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -261,7 +381,9 @@ export const CartPage: React.FC = () => {
 							onChange={handleCustomerInfoChange}
 						/>
 						<button onClick={handleBackToCart}>Back to Cart</button>
-						<button onClick={handleSubmitCustomerInfo}>Place Order</button>
+						<button onClick={handleSubmitCustomerInfo}>
+							Proceed to checkout
+						</button>
 					</form>
 				</div>
 			)}

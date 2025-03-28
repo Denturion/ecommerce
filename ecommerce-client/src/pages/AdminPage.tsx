@@ -18,7 +18,6 @@ import {
 	handleDeleteOrder,
 	handleDeleteOrderItem,
 	handleUpdateOrderItemQuantity,
-	handleUpdateOrderStatus,
 } from '../utils/orderHandlers';
 import { OrderItemContainer } from '../components/styled/OrderItem';
 
@@ -61,29 +60,7 @@ export const AdminPage: React.FC = () => {
 								<p>Email: {order.customer_email}</p>
 								<p>Total Price: ${order.total_price}</p>
 								<p>Order status: {order.order_status}</p>
-								<p>
-									Payment status:{' '}
-									<select
-										value={order.order_status}
-										onChange={(e) => {
-											if (
-												window.confirm(
-													'Are you sure you want to change the order status?'
-												)
-											) {
-												handleUpdateOrderStatus(
-													order.id!,
-													e.target.value,
-													loadOrders
-												);
-											}
-										}}
-									>
-										<option value='Pending'>Pending</option>
-										<option value='Processing'>Processing</option>
-										<option value='Completed'>Completed</option>
-									</select>
-								</p>
+								<p>Payment status: {order.payment_status}</p>
 								<button
 									onClick={() => {
 										if (

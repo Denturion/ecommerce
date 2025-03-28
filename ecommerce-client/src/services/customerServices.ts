@@ -10,10 +10,7 @@ export const createCustomer = async (customer: ICreateCustomer) => {
 		console.log('Customer created successfully:', response.data);
 		return response.data;
 	} catch (error) {
-		console.error(
-			'Error creating customer:',
-			error.response?.data || error.message
-		);
+		console.error('Error creating customer:', error);
 		throw error;
 	}
 };
@@ -24,6 +21,18 @@ export const fetchAllCustomers = async (): Promise<ICustomer[]> => {
 		return response.data;
 	} catch (error) {
 		console.error('Error fetching customers:', error);
+		throw error;
+	}
+};
+
+export const fetchCustomerByEmail = async (
+	email: string
+): Promise<ICreateCustomer> => {
+	try {
+		const response = await axios.get(`${API_URL}/customers/email/${email}`);
+		return response.data;
+	} catch (error) {
+		console.error('Error fetching customer by email:', email, error);
 		throw error;
 	}
 };

@@ -10,10 +10,7 @@ export const createOrder = async (order: ICreateOrder) => {
 		console.log('Order creation response:', response.data);
 		return response.data;
 	} catch (error) {
-		console.error(
-			'Error creating order:',
-			error.response?.data || error.message
-		);
+		console.error('Error creating order:');
 		throw error;
 	}
 };
@@ -33,10 +30,25 @@ export const fetchAllOrders = async (): Promise<IOrder[]> => {
 	}
 };
 
-export const updateOrder = async (order: IOrder): Promise<IOrder> => {
+export const updateOrder = async (
+	orderId: string,
+	updates: {
+		payment_status?: string;
+		payment_id?: string;
+		order_status?: string;
+	}
+): Promise<void> => {
 	try {
-		const response = await axios.patch(`${API_URL}/orders/${order.id}`, order);
-		return response.data;
+		const response = await axios.patch(
+			`${API_URL}/orders/${orderId}`,
+			updates,
+			{
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			}
+		);
+		console.log('Order updated successfully:', response.data);
 	} catch (error) {
 		console.error('Error updating order:', error);
 		throw error;

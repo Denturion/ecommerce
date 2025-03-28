@@ -8,6 +8,8 @@ import { AdminLoader } from './utils/AdminLoader';
 import { AdminPage } from './pages/AdminPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { CartProvider } from './components/contexts/CartContext';
+import { SuccessPage } from './pages/SuccessPage';
+import { OrderSummary } from './pages/OrderSummary';
 
 export const router = createBrowserRouter([
 	{
@@ -30,6 +32,14 @@ export const router = createBrowserRouter([
 			{
 				path: '/cart',
 				element: <CartPage />,
+			},
+			{
+				path: '/success',
+				element: <SuccessPage />,
+			},
+			{
+				path: '/order-summary',
+				element: <OrderSummary />,
 			},
 		],
 	},

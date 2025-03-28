@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { IProduct } from '../types/IProduct';
 
 interface CartContextType {
@@ -29,6 +29,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 			return [...prevCart, { ...product, quantity: 1 }];
 		});
 	};
+
+	useEffect(() => {
+		localStorage.setItem('cart', JSON.stringify(cart));
+	}, [cart]);
 
 	const removeFromCart = (productId: number) => {
 		setCart((prevCart) => {
